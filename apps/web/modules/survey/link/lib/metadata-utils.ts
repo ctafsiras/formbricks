@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { Project } from "@prisma/client";
 import { getTextContent } from "@formbricks/types/surveys/validation";
 import { IS_FORMBRICKS_CLOUD } from "@/lib/constants";
 import { getPublicDomain } from "@/lib/getPublicUrl";
@@ -6,6 +7,7 @@ import { getLocalizedValue } from "@/lib/i18n/utils";
 import { COLOR_DEFAULTS } from "@/lib/styling/constants";
 import { recallToHeadline } from "@/lib/utils/recall";
 import { getSurvey } from "@/modules/survey/lib/survey";
+import { getProjectByEnvironmentId } from "@/modules/survey/link/lib/project";
 
 type TBasicSurveyMetadata = {
   title: string;
@@ -24,11 +26,13 @@ export const getBrandColorForURL = (value: string) => encodeURIComponent(value);
  * @param surveyId - Survey identifier
  * @param languageCode - Language code for localization (default: "default")
  * @param survey - Optional survey data if already available (e.g., from generateMetadata)
+ * @param project - Optional project data if already available
  */
 export const getBasicSurveyMetadata = async (
   surveyId: string,
   languageCode = "default",
-  survey?: Awaited<ReturnType<typeof getSurvey>> | null
+  survey?: Awaited<ReturnType<typeof getSurvey>> | null,
+  project?: Pick<Project, "linkSurveyBranding"> | null
 ): Promise<TBasicSurveyMetadata> => {
   const surveyData = survey ?? (await getSurvey(surveyId));
 
@@ -70,8 +74,13 @@ export const getBasicSurveyMetadata = async (
   // Get OG image from link metadata if available
   const ogImage = metadata?.ogImage;
 
-  if (!titleFromMetadata) {
-    if (IS_FORMBRICKS_CLOUD) {
+  // Only append "| Formbricks" if:
+  // 1. Title is not from custom link metadata
+  // 2. Running on Formbricks Cloud
+  // 3. Branding is enabled (linkSurveyBranding is true)
+  if (!titleFromMetadata && IS_FORMBRICKS_CLOUD) {
+    const projectData = project ?? (await getProjectByEnvironmentId(surveyData.environmentId));
+    if (projectData?.linkSurveyBranding) {
       title = `${title} | Formbricks`;
     }
   }

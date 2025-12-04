@@ -149,7 +149,7 @@ describe("Metadata Utils", () => {
       });
     });
 
-    test("adds Formbricks to title when IS_FORMBRICKS_CLOUD is true", async () => {
+    test("adds Formbricks to title when IS_FORMBRICKS_CLOUD is true and branding is enabled", async () => {
       // Temporarily modify the mocked module
       vi.doMock("@/lib/constants", () => ({
         IS_FORMBRICKS_CLOUD: true,
@@ -171,11 +171,56 @@ describe("Metadata Utils", () => {
         } as TSurveyWelcomeCard,
       } as TSurvey;
 
+      const mockProject = {
+        linkSurveyBranding: true,
+      };
+
       vi.mocked(getSurvey).mockResolvedValue(mockSurvey);
+      vi.mocked(getProjectByEnvironmentId).mockResolvedValue(mockProject as any);
 
       const result = await getBasicSurveyMetadataWithCloudMock(mockSurveyId);
 
       expect(result.title).toBe("Test Survey | Formbricks");
+
+      // Reset the mock
+      vi.doMock("@/lib/constants", () => ({
+        IS_FORMBRICKS_CLOUD: false,
+        WEBAPP_URL: "https://test.formbricks.com",
+      }));
+    });
+
+    test("does not add Formbricks to title when branding is disabled", async () => {
+      // Temporarily modify the mocked module
+      vi.doMock("@/lib/constants", () => ({
+        IS_FORMBRICKS_CLOUD: true,
+        WEBAPP_URL: "https://test.formbricks.com",
+      }));
+
+      // Re-import the function to use the updated mock
+      const { getBasicSurveyMetadata: getBasicSurveyMetadataWithCloudMock } = await import(
+        "./metadata-utils"
+      );
+
+      const mockSurvey = {
+        id: mockSurveyId,
+        environmentId: mockEnvironmentId,
+        name: "Test Survey",
+        metadata: {},
+        welcomeCard: {
+          enabled: false,
+        } as TSurveyWelcomeCard,
+      } as TSurvey;
+
+      const mockProject = {
+        linkSurveyBranding: false,
+      };
+
+      vi.mocked(getSurvey).mockResolvedValue(mockSurvey);
+      vi.mocked(getProjectByEnvironmentId).mockResolvedValue(mockProject as any);
+
+      const result = await getBasicSurveyMetadataWithCloudMock(mockSurveyId);
+
+      expect(result.title).toBe("Test Survey");
 
       // Reset the mock
       vi.doMock("@/lib/constants", () => ({
